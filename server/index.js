@@ -9,45 +9,51 @@ const { emit } = require('process');
 const app = express();
 app.use(cors())
 const server = http.createServer(app);
-const io = socketIo(server, {cors: {origin: '*'}});
+const io = socketIo(server, { cors: { origin: '*' } });
 // Socket.io events
 
 let messageHistory = [];
 
 
 io.on('connection', (socket) => {
+    console.log(`New client connected ${socket.id}`);
+    let avatarID = Math.floor(Math.random() * 12) + 1
+    let username = ''
     function historyUpdate(message) {
         messageHistory.push(message);
-        if (messageHistory.length > 50) {
+        if (messageHistory.length > 200) {
             messageHistory = messageHistory.slice(1)
         }
         socket.emit('messageHistory', messageHistory);
     }
 
-
-    let username = ''
-    console.log(`New client connected ${socket.id}`);
-    socket.emit('messageHistory', messageHistory);
     socket.on('setUsername', (userName) => {
-        io.emit('chat message', `${userName} connected`)
         username = userName
-        historyUpdate(`${userName} connected`)
+        let data = { avatar: avatarID, name: username, message: "connected", type: 0 }
+        io.emit('chat message', data)
+        historyUpdate(data)
     })
-    
+
     socket.on('disconnect', () => {
         console.log('Client disconnected');
-        io.emit('chat message', `${username} disconnected`)
-        historyUpdate(`${username} disconnected`)
+        let data = { avatar: avatarID, name: username, message: "disconnected", type: 1 }
+        io.emit('chat message', data)
+        historyUpdate(data)
     });
 
     socket.on('chat message', (message) => {
         if (message == '') {
             return
         }
+        if (message.length > 300) {
+            return
+        }
         console.log('Message:', message);
-        io.emit('chat message', `${username}: ${message}`);
-        historyUpdate(`${username}: ${message}`)
+        let data = { avatar: avatarID, name: username, message: message, type: 2 }
+        io.emit('chat message', { avatar: avatarID, name: username, message: message, type: 2 });
+        historyUpdate(data)
     });
+    socket.emit('messageHistory', messageHistory);
 });
 
 // Start server
